@@ -1,0 +1,495 @@
+
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meeting Hub – 회의문화 개선</title>
+  <style>
+    :root{
+      --bg:#0b1220; --surface:#0f172a; --panel:#0d1b2a; --text:#e2e8f0; --muted:#94a3b8;
+      --primary:#3b82f6; --ring:rgba(59,130,246,.35); --border:rgba(255,255,255,.08);
+      --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,sans-serif;background:radial-gradient(1200px 800px at 16% 10%,#091120,var(--bg));color:var(--text);}
+    a{color:#93c5fd}
+    header.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(13,19,36,.7);backdrop-filter:blur(4px);border-bottom:1px solid var(--border)}
+    .brand{display:flex;gap:10px;align-items:center}
+    .brand .logo{width:28px;height:28px;border-radius:8px;background:#172554;display:grid;place-items:center}
+    .nav{display:flex;gap:8px;flex-wrap:wrap}
+    .nav button{padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+    .nav button[aria-current="page"]{background:var(--primary);border-color:transparent;color:white}
+    main{max-width:1100px;margin:0 auto;padding:18px}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px}
+    .grid{display:grid;gap:12px}
+    .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    @media (max-width:900px){.grid.cols-2,.grid.cols-3{grid-template-columns:1fr}}
+    h2{font-size:18px;margin:4px 0 10px}
+    h3{font-size:16px;margin:0 0 8px}
+    label{display:block;margin:10px 0 6px}
+    input[type="text"], input[type="number"], textarea {width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0b1324;color:var(--text);outline:none}
+    textarea{min-height:80px}
+    input:focus, textarea:focus{box-shadow:0 0 0 4px var(--ring);border-color:var(--primary)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .btn{padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:#18223a;color:var(--text);cursor:pointer}
+    .btn.primary{background:var(--primary);border-color:transparent;color:#fff}
+    .btn.ghost{background:#0b1324}
+    .btn.danger{background:#3c1a1a;border-color:#5b1f1f}
+    .pill{padding:5px 8px;border-radius:999px;background:#0b1324;border:1px solid var(--border);font-size:12px;color:#cbd5e1}
+    .muted{color:var(--muted)}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap}
+    .kpi .card{padding:12px 14px;background:#0c172c;border:1px solid var(--border);border-radius:14px;min-width:160px}
+    .list{display:grid;gap:10px}
+    .meeting{display:grid;grid-template-columns:1fr auto;gap:6px;padding:12px;background:#0f172a;border:1px solid var(--border);border-radius:12px}
+    .meeting .meta{font-size:12px;color:#cbd5e1}
+    .chip{padding:2px 6px;border-radius:999px;background:#0b1324;border:1px solid var(--border);font-size:12px}
+    .danger-text{color:#fecaca}
+    .success-text{color:#bbf7d0}
+    /* modal */
+    .modal[hidden]{display:none}
+    .modal{position:fixed;inset:0;z-index:50}
+    .modal__backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+    .modal__panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(900px,92vw);background:#0f172a;border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 50px rgba(0,0,0,.5);}
+    .modal__header,.modal__footer{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)}
+    .modal__footer{border-top:1px solid var(--border);border-bottom:none;justify-content:flex-end}
+    .modal__body{padding:14px}
+    .spinner{width:28px;height:28px;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:var(--primary);animation:spin 1s linear infinite;margin:20px auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .viewer{width:100%;height:360px;background:#0b1324;border:1px dashed var(--border);border-radius:12px;display:grid;place-items:center;overflow:auto}
+    .viewer embed,.viewer img{max-width:100%;max-height:100%}
+    .note-list{display:grid;gap:8px;margin-top:8px}
+    .note{padding:8px;border:1px solid var(--border);border-radius:10px;background:#0b1324}
+    .section{display:none}
+    .section.active{display:block}
+    .a11y-hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <div class="logo">⏱️</div>
+      <div>
+        <div style="font-weight:700">Meeting Hub</div>
+        <div class="muted" style="font-size:12px">빠르고 명확한 회의를 위한 내부 도구</div>
+      </div>
+    </div>
+    <nav class="nav" aria-label="주요 메뉴">
+      <button data-goto="start" aria-current="page">회의 시작</button>
+      <button data-goto="dash">대시보드</button>
+      <button data-goto="guide">가이드</button>
+      <button data-goto="settings">설정</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 회의 시작 -->
+    <section id="start" class="section active">
+      <div class="grid cols-2">
+        <div class="panel">
+          <h2>회의 기본</h2>
+          <label>회의 목적 (한 문장)</label>
+          <input id="purpose" type="text" placeholder="예) 신제품 런칭 일정 확정">
+          <div class="row">
+            <label style="margin:0">예정 시간(분)</label>
+            <input id="plannedMin" type="number" min="5" step="5" value="30" style="max-width:120px">
+            <span class="pill">회사가 모두 보는 총 회의시간 KPI에 반영</span>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" id="startBtn">타이머 시작</button>
+            <button class="btn" id="pauseBtn" disabled>일시정지</button>
+            <button class="btn" id="resumeBtn" disabled>재개</button>
+            <button class="btn danger" id="stopBtn" disabled>종료 & 저장</button>
+            <div id="timer" class="pill">00:00:00</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>회의 실행계획서 업로드 & 노트</h2>
+          <div class="row">
+            <input id="planFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt">
+            <span class="muted">PDF/이미지/텍스트 지원(데모: 로컬 표시)</span>
+          </div>
+          <div class="viewer" id="viewer">파일을 업로드하면 미리보기가 여기에 표시됩니다</div>
+          <label>메모 입력</label>
+          <textarea id="noteText" placeholder="안건 메모 / 할 일 등"></textarea>
+          <div class="row">
+            <button class="btn" id="addNoteBtn">메모 추가</button>
+          </div>
+          <div class="note-list" id="notes"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <h2>체크리스트 (회의 전 · 중 · 후)</h2>
+        <div class="grid cols-3">
+          <div>
+            <h3>회의 전</h3>
+            <label><input type="checkbox" class="pre"> 목적을 한 문장으로 정리</label>
+            <label><input type="checkbox" class="pre"> 꼭 필요한 참석자만 초대</label>
+            <label><input type="checkbox" class="pre"> 안건·참고자료·예상시간 사전 공유</label>
+            <label><input type="checkbox" class="pre"> 기록자 지정(예: 막내)</label>
+          </div>
+          <div>
+            <h3>회의 중</h3>
+            <label><input type="checkbox" class="mid"> 안건별 시간 엄수</label>
+            <label><input type="checkbox" class="mid"> 목적/결과 중심 진행</label>
+            <label><input type="checkbox" class="mid"> 실행계획서 실시간 작성</label>
+            <label><input type="checkbox" class="mid"> 종료 10분 전 결과 정리</label>
+          </div>
+          <div>
+            <h3>회의 후</h3>
+            <label><input type="checkbox" class="post"> 핵심 논의 2~3줄 요약</label>
+            <label><input type="checkbox" class="post"> 결론/합의안 확정</label>
+            <label><input type="checkbox" class="post"> 후속조치(과제·담당·기한) 명시</label>
+            <label><input type="checkbox" class="post"> 실행계획서 공유</label>
+          </div>
+        </div>
+        <div class="muted" style="margin-top:6px">* 체크리스트는 사내 회의 문화 가이드를 토대로 구성됨.</div>
+      </div>
+    </section>
+
+    <!-- 대시보드 -->
+    <section id="dash" class="section">
+      <div class="grid cols-2">
+        <div class="panel">
+          <h2>최근 회의</h2>
+          <div class="row" style="margin-bottom:8px">
+            <input id="search" type="text" placeholder="검색 (숫자 포함 검색 가능)">
+            <button class="btn" id="clearSearch">지우기</button>
+          </div>
+          <div id="meetingList" class="list"></div>
+        </div>
+        <div class="panel">
+          <h2>KPI</h2>
+          <div class="kpi">
+            <div class="card">
+              <div class="muted">총 회의시간(이번달)</div>
+              <div id="kpiMonth" style="font-weight:700;font-size:20px">0분</div>
+            </div>
+            <div class="card">
+              <div class="muted">회의 건수</div>
+              <div id="kpiCount" style="font-weight:700;font-size:20px">0건</div>
+            </div>
+            <div class="card">
+              <div class="muted">평균 길이</div>
+              <div id="kpiAvg" style="font-weight:700;font-size:20px">0분</div>
+            </div>
+          </div>
+          <div class="muted" style="margin-top:8px">* Firebase 연결 시 모든 직원이 공동으로 보는 대시보드가 됩니다. 미연결 시 이 브라우저에만 저장됩니다.</div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn ghost" id="exportCsv">CSV 내보내기</button>
+            <button class="btn danger" id="wipeLocal">로컬 데이터 삭제</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 가이드 -->
+    <section id="guide" class="section">
+      <div class="panel">
+        <h2>회의 문화 가이드 핵심</h2>
+        <ul>
+          <li><b>목적(Purpose)</b>을 한 문장으로 명확히.</li>
+          <li><b>시간(Limit Time)</b>을 정해 안건별로 관리.</li>
+          <li><b>핵심 안건(Agenda)</b> 중심으로 논의.</li>
+          <li><b>후속 조치(Next Steps)</b>가 있는 회의.</li>
+        </ul>
+        <p class="muted">자세한 내용은 사내 가이드를 참고하세요.</p>
+      </div>
+    </section>
+
+    <!-- 설정 -->
+    <section id="settings" class="section">
+      <div class="panel">
+        <h2>저장소 설정</h2>
+        <p>기본은 이 브라우저(LocalStorage)에 저장됩니다. 모든 직원이 공유하는 대시보드를 원하면 <b>Firebase</b> 프로젝트를 연결하세요(무료 등급으로 충분).</p>
+        <div class="grid cols-2">
+          <div>
+            <h3>Firebase 설정</h3>
+            <label>apiKey</label><input id="fb_apiKey" type="text">
+            <label>authDomain</label><input id="fb_authDomain" type="text">
+            <label>projectId</label><input id="fb_projectId" type="text">
+            <label>appId</label><input id="fb_appId" type="text">
+            <div class="row" style="margin-top:8px">
+              <button class="btn primary" id="saveFb">저장 & 연결</button>
+              <button class="btn" id="clearFb">설정 비우기</button>
+            </div>
+            <div id="fbStatus" class="muted" style="margin-top:6px">연결 안 됨</div>
+          </div>
+          <div>
+            <h3>옵션</h3>
+            <label><input type="checkbox" id="optAnon" checked> Firebase는 익명 로그인 사용</label>
+            <label><input type="checkbox" id="optPublic" checked> 회의 기록은 사내 누구나 읽기</label>
+            <p class="muted">* 보안 규칙은 Firestore에서 별도로 설정 필요합니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 상세 모달 -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel" role="document">
+      <header class="modal__header">
+        <h3 id="modalTitle">회의 상세</h3>
+        <button id="modalClose" class="btn">닫기</button>
+      </header>
+      <div class="modal__body">
+        <div id="modalSpin" class="spinner" aria-hidden="true"></div>
+        <div id="modalBody"></div>
+      </div>
+      <footer class="modal__footer">
+        <button data-close class="btn">닫기</button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    /************ Storage Backend (LocalStorage default, optional Firebase) ************/
+    const LS_KEY = "meetinghub.meetings.v1";
+    let backend = {
+      name: "local",
+      async init(){ return true; },
+      async saveMeeting(m){ const arr = loadLocal(); arr.unshift(m); saveLocal(arr); return m.id; },
+      async listMeetings(){ return loadLocal(); }
+    };
+
+    function loadLocal(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch(e){ return []; } }
+    function saveLocal(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+
+    async function maybeInitFirebase(){
+      const cfg = JSON.parse(localStorage.getItem("meetinghub.fb") || "null");
+      if(!cfg || !cfg.apiKey || !cfg.projectId) { backend = backend; setFbStatus(false, "연결 안 됨"); return; }
+      // lazy import Firebase CDN only if configured
+      try{
+        const app = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+        const firestore = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+        const authmod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+        const appInst = app.initializeApp(cfg);
+        const db = firestore.getFirestore(appInst);
+        if(document.getElementById('optAnon')?.checked !== false){
+          const auth = authmod.getAuth(appInst);
+          await authmod.signInAnonymously(auth);
+        }
+        backend = {
+          name: "firebase",
+          async init(){ return true; },
+          async saveMeeting(m){
+            const col = firestore.collection(db, "meetings");
+            await firestore.addDoc(col, m);
+            return m.id;
+          },
+          async listMeetings(){
+            const col = firestore.collection(db, "meetings");
+            const q = firestore.query(col, firestore.orderBy("endedAt","desc"), firestore.limit(200));
+            const snap = await firestore.getDocs(q);
+            return snap.docs.map(d=>d.data());
+          }
+        };
+        setFbStatus(true, "연결됨: " + cfg.projectId);
+      }catch(err){
+        console.error(err);
+        setFbStatus(false, "연결 실패 – 콘솔 확인");
+        backend = { name:"local", init:async()=>true, saveMeeting: async(m)=>{ const arr=loadLocal(); arr.unshift(m); saveLocal(arr); return m.id; }, listMeetings: async()=>loadLocal() };
+      }
+    }
+
+    function setFbStatus(ok, msg){ const el=document.getElementById('fbStatus'); if(el){ el.textContent=msg; el.style.color= ok? "#bbf7d0":"#94a3b8"; } }
+
+    /************ Timer ************/
+    let timer = { running:false, startedAt:null, elapsedSec:0, hdl:null };
+    function fmt(sec){ const s = Math.max(0, Math.floor(sec)); const h=String(Math.floor(s/3600)).padStart(2,'0'); const m = String(Math.floor((s%3600)/60)).padStart(2,'0'); const ss = String(s%60).padStart(2,'0'); return `${h}:${m}:${ss}`; }
+    function tick(){ const now=Date.now(); const elapsed = timer.elapsedSec + (timer.startedAt? (now - timer.startedAt)/1000 : 0); document.getElementById('timer').textContent = fmt(elapsed); }
+
+    function startTimer(){
+      const purpose = document.getElementById('purpose').value.trim();
+      if(!purpose){ alert("회의 목적(한 문장)을 입력하세요."); return; }
+      if(timer.running) return;
+      timer.running=true; timer.startedAt=Date.now();
+      document.getElementById('startBtn').disabled=true;
+      document.getElementById('pauseBtn').disabled=false;
+      document.getElementById('stopBtn').disabled=false;
+      timer.hdl = setInterval(tick, 500);
+    }
+    function pauseTimer(){ if(!timer.running) return; timer.elapsedSec += (Date.now()-timer.startedAt)/1000; timer.startedAt=null; timer.running=false; clearInterval(timer.hdl); document.getElementById('pauseBtn').disabled=true; document.getElementById('resumeBtn').disabled=false; }
+    function resumeTimer(){ if(timer.running) return; timer.startedAt=Date.now(); timer.running=true; document.getElementById('pauseBtn').disabled=false; document.getElementById('resumeBtn').disabled=true; timer.hdl = setInterval(tick, 500); }
+    async function stopTimer(){
+      if(timer.running){ timer.elapsedSec += (Date.now()-timer.startedAt)/1000; }
+      clearInterval(timer.hdl); timer.running=false; document.getElementById('startBtn').disabled=false; document.getElementById('pauseBtn').disabled=true; document.getElementById('resumeBtn').disabled=true; document.getElementById('stopBtn').disabled=true;
+      const purpose = document.getElementById('purpose').value.trim();
+      const plannedMin = Number(document.getElementById('plannedMin').value||0);
+      const pre = [...document.querySelectorAll('input.pre')].map(x=>x.checked);
+      const mid = [...document.querySelectorAll('input.mid')].map(x=>x.checked);
+      const post = [...document.querySelectorAll('input.post')].map(x=>x.checked);
+      const notes = [...document.querySelectorAll('.note')].map(n=>({ text:n.dataset.text, at: Number(n.dataset.at) }));
+      const m = {
+        id: "m_"+Date.now(),
+        purpose, plannedMin,
+        startedAt: Date.now()-timer.elapsedSec*1000,
+        endedAt: Date.now(),
+        durationSec: Math.round(timer.elapsedSec),
+        checklist: { pre, mid, post },
+        notesCount: notes.length,
+        // for privacy, do not store uploaded file content in local by default
+      };
+      await backend.saveMeeting(m);
+      alert("회의 기록이 저장되었습니다. 대시보드에서 확인하세요.");
+      // reset timer
+      timer = { running:false, startedAt:null, elapsedSec:0, hdl:null }; tick();
+      // switch to dashboard
+      goto("dash"); await refreshDash();
+    }
+
+    /************ Execution Plan preview & notes ************/
+    const viewer = document.getElementById('viewer');
+    document.getElementById('planFile').addEventListener('change', (e)=>{
+      const f = e.target.files?.[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        const url = ev.target.result;
+        viewer.innerHTML="";
+        if(f.type.includes("pdf")){ const embed = document.createElement('embed'); embed.src=url; embed.type="application/pdf"; embed.style="width:100%;height:100%"; viewer.appendChild(embed); }
+        else if(f.type.startsWith("image/")){ const img = document.createElement('img'); img.src=url; viewer.appendChild(img); }
+        else { const pre=document.createElement('pre'); pre.textContent = atob(url.split(",")[1]); pre.style.margin="12px"; viewer.appendChild(pre); }
+      };
+      reader.readAsDataURL(f);
+    });
+
+    document.getElementById('addNoteBtn').addEventListener('click', ()=>{
+      const el = document.getElementById('noteText');
+      const text = el.value.trim(); if(!text) return;
+      const li = document.createElement('div'); li.className="note"; li.dataset.text=text; li.dataset.at=Date.now();
+      li.innerHTML = `<div class="muted" style="font-size:12px">${new Date().toLocaleString()}</div><div>${escapeHtml(text)}</div>`;
+      document.getElementById('notes').prepend(li);
+      el.value="";
+    });
+
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[m])); }
+
+    /************ Dashboard ************/
+    function parseQuery(q){
+      q=q.trim(); if(!q) return {mode:'all', tokens:[]};
+      const orMode = /\sOR\s/i.test(q); const tokens=[]; let m, rx=/"([^"]+)"|(\S+)/g;
+      while((m=rx.exec(q))!==null){ tokens.push((m[1]||m[2]).toLowerCase()); }
+      return {mode:orMode?'any':'all', tokens};
+    }
+    function matchRec(rec, parsed){
+      if(parsed.tokens.length===0) return true;
+      const blob = [rec.purpose, String(rec.plannedMin), String(Math.round(rec.durationSec/60)), new Date(rec.endedAt).toLocaleString()].join(" ").toLowerCase();
+      const test = t=> blob.includes(t);
+      return parsed.mode==='all' ? parsed.tokens.every(test) : parsed.tokens.some(test);
+    }
+    async function refreshDash(){
+      const arr = await backend.listMeetings();
+      const search = document.getElementById('search').value || "";
+      const parsed = parseQuery(search);
+      const list = document.getElementById('meetingList'); list.innerHTML="";
+      const filtered = arr.filter(r=>matchRec(r, parsed));
+      filtered.sort((a,b)=>b.endedAt-a.endedAt);
+      for(const r of filtered){
+        const div = document.createElement('div'); div.className="meeting";
+        div.innerHTML = `
+          <div>
+            <div style="font-weight:700">${r.purpose}</div>
+            <div class="meta">${new Date(r.endedAt).toLocaleString()} · <span class="chip">${Math.round(r.durationSec/60)}분</span> · 체크 ${r.checklist?.pre?.filter(Boolean).length + r.checklist?.mid?.filter(Boolean).length + r.checklist?.post?.filter(Boolean).length}</div>
+          </div>
+          <div class="row">
+            <button class="btn" data-id="${r.id}">상세</button>
+          </div>
+        `;
+        div.querySelector('button').addEventListener('click', ()=>openDetail(r));
+        list.appendChild(div);
+      }
+      // KPI
+      const monthStr = new Date().toISOString().slice(0,7);
+      const monthly = arr.filter(r=> new Date(r.endedAt).toISOString().startsWith(monthStr));
+      const totalMin = Math.round(monthly.reduce((s,r)=>s+r.durationSec,0)/60);
+      const count = monthly.length;
+      const avg = count? Math.round(totalMin/count) : 0;
+      document.getElementById('kpiMonth').textContent = totalMin+"분";
+      document.getElementById('kpiCount').textContent = count+"건";
+      document.getElementById('kpiAvg').textContent = avg+"분";
+    }
+
+    // export CSV
+    document.getElementById('exportCsv').addEventListener('click', async ()=>{
+      const arr = await backend.listMeetings();
+      const header = ["id","purpose","plannedMin","startedAt","endedAt","durationSec"];
+      const rows = [header.join(",")].concat(arr.map(r=>[r.id, csv(r.purpose), r.plannedMin, new Date(r.startedAt).toISOString(), new Date(r.endedAt).toISOString(), r.durationSec].join(",")));
+      const blob = new Blob([rows.join("\n")], {type:"text/csv;charset=utf-8"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download="meetings.csv"; a.click(); URL.revokeObjectURL(url);
+    });
+    function csv(s){ return `"${String(s).replace(/"/g,'""')}"`; }
+
+    document.getElementById('wipeLocal').addEventListener('click', ()=>{
+      if(confirm("로컬에 저장된 회의 기록을 삭제할까요? (Firebase 데이터는 영향 없음)")){
+        localStorage.removeItem(LS_KEY); refreshDash();
+      }
+    });
+
+    document.getElementById('search').addEventListener('input', refreshDash);
+    document.getElementById('clearSearch').addEventListener('click', ()=>{ document.getElementById('search').value=""; refreshDash(); });
+
+    /************ Detail Modal with double-open guard ************/
+    let MODAL_OPENING=false;
+    function openDetail(rec){
+      if(MODAL_OPENING) return; MODAL_OPENING = true;
+      const modal = document.getElementById('modal'); const spin = document.getElementById('modalSpin'); const body = document.getElementById('modalBody');
+      body.innerHTML=""; spin.removeAttribute('aria-hidden'); modal.hidden=false;
+      setTimeout(()=>{
+        body.innerHTML = `
+          <div class="grid cols-2">
+            <div>
+              <div class="muted">목적</div>
+              <div style="font-weight:700">${escapeHtml(rec.purpose)}</div>
+              <div class="muted" style="margin-top:6px">시간</div>
+              <div>${new Date(rec.startedAt).toLocaleString()} ~ ${new Date(rec.endedAt).toLocaleString()}</div>
+              <div style="margin-top:4px">실제 길이: <b>${fmt(rec.durationSec)}</b> (예정 ${rec.plannedMin}분)</div>
+            </div>
+            <div>
+              <div class="muted">체크리스트</div>
+              <div>전: ${rec.checklist?.pre?.filter(Boolean).length} / ${rec.checklist?.pre?.length||0}</div>
+              <div>중: ${rec.checklist?.mid?.filter(Boolean).length} / ${rec.checklist?.mid?.length||0}</div>
+              <div>후: ${rec.checklist?.post?.filter(Boolean).length} / ${rec.checklist?.post?.length||0}</div>
+            </div>
+          </div>
+        `;
+        spin.setAttribute('aria-hidden','true'); MODAL_OPENING=false;
+      }, 300);
+    }
+    document.querySelectorAll('[data-close], #modalClose').forEach(el=>el.addEventListener('click', ()=>{ document.getElementById('modal').hidden=true; }));
+
+    /************ Settings ************/
+    function loadFbForm(){
+      const cfg = JSON.parse(localStorage.getItem("meetinghub.fb") || "null") || {};
+      ['apiKey','authDomain','projectId','appId'].forEach(k=>{ const el=document.getElementById('fb_'+k); if(el) el.value = cfg[k]||""; });
+    }
+    document.getElementById('saveFb').addEventListener('click', async ()=>{
+      const cfg = ['apiKey','authDomain','projectId','appId'].reduce((o,k)=> (o[k]=document.getElementById('fb_'+k).value.trim(), o), {});
+      localStorage.setItem("meetinghub.fb", JSON.stringify(cfg));
+      await maybeInitFirebase(); alert("설정 저장 및 연결 시도 완료");
+    });
+    document.getElementById('clearFb').addEventListener('click', ()=>{ localStorage.removeItem("meetinghub.fb"); setFbStatus(false,"연결 안 됨"); alert("설정을 비웠습니다."); backend = { name:"local", init:async()=>true, saveMeeting: async(m)=>{ const arr=loadLocal(); arr.unshift(m); saveLocal(arr); return m.id; }, listMeetings: async()=>loadLocal() }; });
+
+    /************ Navigation ************/
+    function goto(id){
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current', b.dataset.goto===id ? 'page' : 'false'));
+    }
+    document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click', ()=>goto(b.dataset.goto)));
+
+    /************ Bootstrap ************/
+    document.getElementById('startBtn').addEventListener('click', startTimer);
+    document.getElementById('pauseBtn').addEventListener('click', pauseTimer);
+    document.getElementById('resumeBtn').addEventListener('click', resumeTimer);
+    document.getElementById('stopBtn').addEventListener('click', stopTimer);
+    tick(); loadFbForm(); maybeInitFirebase(); refreshDash();
+  </script>
+</body>
+</html>
